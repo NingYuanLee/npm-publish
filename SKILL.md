@@ -22,7 +22,7 @@ metadata:
 三处互不相通，不要混用：
 
 1. **当前进程环境** `NPM_TOKEN` 或 `NODE_AUTH_TOKEN`。DeepSeek Harness 拉起的命令经常没有用户级变量。
-2. **Windows 用户环境** `[Environment]::GetEnvironmentVariable('NPM_TOKEN','User')`，没有再查 `Machine`。本机有效令牌在这里。
+2. **Windows 用户环境** `[Environment]::GetEnvironmentVariable('NPM_TOKEN','User')`，没有再查 `Machine`。是否存在有效令牌取决于当前用户的配置。
 3. **GitHub Actions** `secrets.NPM_TOKEN`。只给 CI 用。本地有用户变量，不代表仓库 secret 已配置。
 
 `~/.npmrc` 的 `//registry.npmjs.org/:_authToken` 可能已失效。`npm whoami` 返回 401 时不要改用它，也不要把它打印出来。
@@ -34,7 +34,9 @@ metadata:
 在 PowerShell 里取令牌、写临时 npmrc、发布、删掉临时文件。命令文本里不要出现令牌值：
 
 ```powershell
-$token = [Environment]::GetEnvironmentVariable('NPM_TOKEN','User')
+$token = $env:NPM_TOKEN
+if (-not $token) { $token = $env:NODE_AUTH_TOKEN }
+if (-not $token) { $token = [Environment]::GetEnvironmentVariable('NPM_TOKEN','User') }
 if (-not $token) { $token = [Environment]::GetEnvironmentVariable('NPM_TOKEN','Machine') }
 if (-not $token) { throw 'NPM_TOKEN missing' }
 $npmrc = Join-Path $env:TEMP ('npmrc-publish-' + [guid]::NewGuid().ToString('n'))
@@ -60,4 +62,4 @@ npm view <name> versions dist-tags --userconfig <empty-npmrc> --json
 
 本地用用户环境发布成功，不会给 GitHub 仓库写入 `NPM_TOKEN`。Actions 仍会打印 `skipping npm publish`，直到在仓库 Settings → Secrets 里单独配置 `NPM_TOKEN`。不要把用户令牌写进仓库、日志或 workflow 文件。
 
-插件编写与市场收录规范见 `dsh-plugin-creator` 技能（源 `D:\tools\skills\dsh-plugin-creator`）。
+插件编写与市场收录规范见 `dsh-plugin-creator` 技能；按当前环境的技能安装位置查找，不假定固定路径。
